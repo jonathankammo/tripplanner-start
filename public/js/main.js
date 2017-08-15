@@ -1,3 +1,4 @@
+var globalDrawMarker;
 $(function initializeMap (){
 
   var fullstackAcademy = new google.maps.LatLng(41.8884073, -87.6293817);
@@ -54,11 +55,12 @@ $(function initializeMap (){
       position: latLng
     });
     marker.setMap(currentMap);
+    return function () {
+      marker.setMap(null);
+    }
   }
 
-    // drawMarker('hotel', [41.8884073, -87.6293817]);
-    // drawMarker('restaurant', [41.9134555, -87.6503527]);
-    // drawMarker('activity', [41.8675766, -87.6162267])
+  globalDrawMarker = drawMarker;
 });
 
 function GenerateItinerary () {
@@ -67,7 +69,8 @@ function GenerateItinerary () {
   this.activities= [];
 }
 
-var day1 = new GenerateItinerary();
+var dayItineraries = [new GenerateItinerary(), new GenerateItinerary(), new GenerateItinerary()];
+var currentDay = 0;
 
 for (var i = 0; i < hotels.length; i++) {
     let hotelChoice = hotels[i].name;
@@ -86,19 +89,67 @@ for (var i = 0; i < activities.length; i++) {
 
 $("#options-panel").on('click', 'button', function() {
   let index = $(this).prev().val();
+  let itineraryDiv, drawMarker;
   if($(this).prev().data("type") === 'hotel') {
-    day1.hotels.push(hotels[index]);
-    $("#hotel-itinerary .itinerary-item").append("<span class=\"title\">" + hotels[index].name + "</span>");
-    $("#hotel-itinerary .itinerary-item").append("<button class=\"btn btn-xs btn-danger remove btn-circle\">x</button>");
+    itineraryDiv = $("#hotel-itinerary .itinerary-item")
+    itineraryDiv.append("<span class=\"title\" data-id=" + index + " data-type=\"hotel\">" + hotels[index].name + "</span>");
+    itineraryDiv.append("<button class=\"btn btn-xs btn-danger remove btn-circle\">x</button>");
+    drawMarker = globalDrawMarker('hotel', hotels[index].place.location);
+    dayItineraries[currentDay].hotels.push({hotel: hotels[index], marker: drawMarker});
   } else if($(this).prev().data("type") === 'restaurant') {
-    day1.restaurants.push(restaurants[index]);
-    $("#restaurant-itinerary .itinerary-item").append("<span class=\"title\">" + restaurants[index].name + "</span>");
-    $("#restaurant-itinerary .itinerary-item").append("<button class=\"btn btn-xs btn-danger remove btn-circle\">x</button>");
+    itineraryDiv = $("#restaurant-itinerary .itinerary-item")
+    itineraryDiv.append("<span class=\"title\" data-id=" + index+ " data-type=\"restaurant\">" + restaurants[index].name + "</span>");
+    itineraryDiv.append("<button class=\"btn btn-xs btn-danger remove btn-circle\">x</button>");
+    drawMarker = globalDrawMarker('restaurant', restaurants[index].place.location);
+    dayItineraries[currentDay].restaurants.push({restaurant: restaurants[index], marker: drawMarker});
   } else if($(this).prev().data("type") === 'activity') {
-    day1.activities.push(activities[index]);
-    $("#activity-itinerary .itinerary-item").append("<span class=\"title\">" + activities[index].name + "</span>");
-    $("#activity-itinerary .itinerary-item").append("<button class=\"btn btn-xs btn-danger remove btn-circle\">x</button>");
+    itineraryDiv =  $("#activity-itinerary .itinerary-item")
+    itineraryDiv.append("<span class=\"title\" data-id=" + index+ " data-type=\"activity\">" + activities[index].name + "</span>");
+    itineraryDiv.append("<button class=\"btn btn-xs btn-danger remove btn-circle\">x</button>");
+    drawMarker = globalDrawMarker('activity', activities[index].place.location);
+    dayItineraries[currentDay].activities.push({activity: activities[index], marker: drawMarker});
   }
-  console.log(day1);
+  console.log(dayItineraries[currentDay]);
 });
+
+$("#itinerary").on('click', 'button', function() {
+  let index = $(this).prev().data('id');
+  let indexToRemove;
+  if ($(this).prev().data('type') === 'hotel'){
+    for(var i = 0; i < dayItineraries[currentDay].hotels.length; i++) {
+      if(dayItineraries[currentDay].hotels[i].hotel.id === hotels[index].id) {
+        indexToRemove = i;
+        break;
+      }
+    }
+    dayItineraries[currentDay].hotels[indexToRemove].marker();
+    dayItineraries[currentDay].hotels.splice(indexToRemove, 1);
+  } else if ($(this).prev().data('type') === 'restaurant'){
+    for(var i = 0; i < dayItineraries[currentDay].restaurants.length; i++) {
+      if(dayItineraries[currentDay].restaurants[i].restaurant.id === restaurants[index].id) {
+        indexToRemove = i;
+        break;
+      }
+    }
+    dayItineraries[currentDay].restaurants[indexToRemove].marker();
+    dayItineraries[currentDay].restaurants.splice(indexToRemove, 1);
+  } else if ($(this).prev().data('type') === 'activity'){
+    for(var i = 0; i < dayItineraries[currentDay].activities.length; i++) {
+      if(dayItineraries[currentDay].activities[i].activity.id === activities[index].id) {
+        indexToRemove = i;
+        break;
+      }
+    }
+    dayItineraries[currentDay].activities[indexToRemove].marker();
+    dayItineraries[currentDay].activities.splice(indexToRemove,1)
+  }
+  $(this).prev().remove();
+  $(this).remove();
+  console.log(dayItineraries[currentDay]);
+})
+
+$('.day-buttons').on('click', '#day-add', function() {
+  var nextDay = +$(this).prev().text() + 1;
+  $(this).before("<button class=\"btn btn-circle day-btn\">" + nextDay + "</button>")
+})
 
